@@ -1,6 +1,7 @@
 import type { Router } from 'express'
 import { config } from '../config.js'
 import { intakeSuggestQuerySchema } from '../validation.js'
+import { chatWithGroq } from '../services/groq.js'
 
 type WitIntent = { name: string; confidence: number }
 
@@ -339,5 +340,49 @@ export function registerIntakeRoutes(router: Router) {
     const suggestion = merged && merged.confidence >= 0.6 ? merged : alternatives.find((s) => s.confidence >= 0.65) ?? null
     const payload: IntakeSuggestResponse = { enabled: true, suggestion, alternatives }
     return res.json(payload)
+  })
+
+  // Chat endpoint using Groq AI
+  router.post('/intake/chat', async (req, res) => {
+    try {
+      const { message, history } = req.body as {
+        message: string
+        history?: Array<{ role: 'user' | 'assistant'; content: string }>
+      }
+
+      if (!message || typeof message !== 'string' || message.trim().length === 0) {
+        return res.status(400).json({ error: 'Mensaje requerido' })
+      }
+
+      if (message.length > 1000) {
+        return res.status(400).json({ error: 'Mensaje demasiado largo' })
+      }
+
+      const conversationHistory = (history ?? [])
+        .slice(-10) // Máximo 10 mensajes de historial
+        .map((m) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content.slice(0, 500)
+        }))
+
+      const result = await chatWithGroq(message.trim(), conversationHistory)
+
+      return res.json({
+        reply: result.reply,
+        category: result.category,
+        subcategory: result.subcategory
+      })
+    } catch (error) {
+      console.error('Chat error:', error)
+      return res.status(500).json({ error: 'Error al procesar el mensaje' })
+    }
+  })
+
+  // Check if AI chat is available
+  router.get('/intake/chat/status', (_req, res) => {
+    return res.json({
+      enabled: Boolean(config.groqApiKey),
+      provider: config.groqApiKey ? 'groq' : null
+    })
   })
 }

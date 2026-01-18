@@ -60,6 +60,8 @@ export const config = {
   },
 
   // Optional: Wit.ai (Meta) for intent classification in the contact assistant.
-  // If empty, the API will return { enabled: false } and the web will fall back to local suggestions.
-  witServerAccessToken: process.env.WIT_SERVER_ACCESS_TOKEN ?? ''
+  witServerAccessToken: process.env.WIT_SERVER_ACCESS_TOKEN ?? '',
+
+  // Groq API for intelligent chat assistant
+  groqApiKey: process.env.GROQ_API_KEY ?? ''
 } as const
