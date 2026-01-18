@@ -44,11 +44,7 @@ export function createServer() {
 
   api.get('/health', (_req, res) => res.json({ ok: true }))
 
-  // Auth
-  api.use(requireCsrf)
-  registerAuthRoutes(api)
-
-  // Public-ish routes (CSRF required because cookie auth is in play; safe default)
+  // Public routes (no CSRF required - these don't have authenticated sessions)
   registerIntakeRoutes(api)
   registerNewsRoutes(api)
   registerHomeRoutes(api)
@@ -56,7 +52,11 @@ export function createServer() {
   registerAnalyticsRoutes(api)
   registerReviewsRoutes(api)
 
-  // Admin (root only)
+  // Auth routes (CSRF required for login/logout)
+  api.use(requireCsrf)
+  registerAuthRoutes(api)
+
+  // Admin (root only + CSRF)
   api.use('/admin', requireRoot)
   registerAdminRoutes(api)
 
