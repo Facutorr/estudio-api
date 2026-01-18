@@ -40,6 +40,8 @@ export const config = {
         password: process.env.ADMIN2_PASSWORD ?? ''
     },
     contactEmail: process.env.CONTACT_EMAIL ?? 'estudiofernandotorres@gmail.com',
+    // Resend API for sending emails
+    resendApiKey: process.env.RESEND_API_KEY ?? '',
     smtp: {
         host: process.env.SMTP_HOST ?? '',
         port: Number(process.env.SMTP_PORT ?? 587),
