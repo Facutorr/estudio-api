@@ -21,8 +21,8 @@ export function registerContactRoutes(router) {
         const r = await pool.query(`insert into contact_messages(subject, pii_encrypted)
        values ($1,$2)
        returning id`, [data.subject, piiEncrypted]);
-        // Best-effort notification email (requires SMTP config)
-        await sendNotificationEmail({
+        // Respond immediately, send email in background (don't await)
+        sendNotificationEmail({
             subject: `Nuevo contacto: ${data.subject}`,
             text: `Nombre: ${data.name}\n` +
                 `Email: ${data.email}\n` +
@@ -33,7 +33,7 @@ export function registerContactRoutes(router) {
                 (data.subcategoriaDetalle ? `Especificar: ${data.subcategoriaDetalle}\n` : '') +
                 `Asunto: ${data.subject}\n\n` +
                 `${data.message}`
-        });
+        }).catch(() => { }); // Ignore email errors
         return res.json({ ok: true, id: r.rows[0].id });
     });
 }

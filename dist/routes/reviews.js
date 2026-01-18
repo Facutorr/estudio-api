@@ -36,11 +36,11 @@ export function registerReviewsRoutes(router) {
             const r = await pool.query(`insert into reviews(name, rating, message, status)
          values ($1,$2,$3,'pending')
          returning id`, [data.name, data.rating, data.message]);
-            // Best-effort notification email (requires SMTP config)
-            await sendNotificationEmail({
+            // Send email in background (don't await)
+            sendNotificationEmail({
                 subject: 'Nueva reseña pendiente de aprobación',
                 text: `Nombre: ${data.name}\nCalificación: ${data.rating}/5\n\n${data.message}`
-            });
+            }).catch(() => { }); // Ignore email errors
             return res.json({ ok: true, id: r.rows[0]?.id });
         }
         catch (e) {

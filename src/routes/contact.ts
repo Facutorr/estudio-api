@@ -29,8 +29,8 @@ export function registerContactRoutes(router: Router) {
       [data.subject, piiEncrypted]
     )
 
-    // Best-effort notification email (requires SMTP config)
-    await sendNotificationEmail({
+    // Respond immediately, send email in background (don't await)
+    sendNotificationEmail({
       subject: `Nuevo contacto: ${data.subject}`,
       text:
         `Nombre: ${data.name}\n` +
@@ -42,7 +42,7 @@ export function registerContactRoutes(router: Router) {
         (data.subcategoriaDetalle ? `Especificar: ${data.subcategoriaDetalle}\n` : '') +
         `Asunto: ${data.subject}\n\n` +
         `${data.message}`
-    })
+    }).catch(() => {}) // Ignore email errors
 
     return res.json({ ok: true, id: r.rows[0].id })
   })
