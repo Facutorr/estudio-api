@@ -3,7 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { securityMiddleware } from './middleware/security.js';
 import { authOptional, requireRoot } from './middleware/auth.js';
-import { ensureCsrf, requireCsrf } from './middleware/csrf.js';
+import { ensureCsrf } from './middleware/csrf.js';
 import { registerAuthRoutes } from './routes/auth.js';
 import { registerNewsRoutes } from './routes/news.js';
 import { registerContactRoutes } from './routes/contact.js';
@@ -35,17 +35,15 @@ export function createServer() {
     app.use(authOptional);
     const api = express.Router();
     api.get('/health', (_req, res) => res.json({ ok: true }));
-    // Public routes (no CSRF required - these don't have authenticated sessions)
+    // Public routes (no CSRF required - cross-origin cookies don't work reliably)
     registerIntakeRoutes(api);
     registerNewsRoutes(api);
     registerHomeRoutes(api);
     registerContactRoutes(api);
     registerAnalyticsRoutes(api);
     registerReviewsRoutes(api);
-    // Auth routes (CSRF required for login/logout)
-    api.use(requireCsrf);
     registerAuthRoutes(api);
-    // Admin (root only + CSRF)
+    // Admin (root only)
     api.use('/admin', requireRoot);
     registerAdminRoutes(api);
     app.use('/api', api);

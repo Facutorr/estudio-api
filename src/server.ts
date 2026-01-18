@@ -44,19 +44,16 @@ export function createServer() {
 
   api.get('/health', (_req, res) => res.json({ ok: true }))
 
-  // Public routes (no CSRF required - these don't have authenticated sessions)
+  // Public routes (no CSRF required - cross-origin cookies don't work reliably)
   registerIntakeRoutes(api)
   registerNewsRoutes(api)
   registerHomeRoutes(api)
   registerContactRoutes(api)
   registerAnalyticsRoutes(api)
   registerReviewsRoutes(api)
-
-  // Auth routes (CSRF required for login/logout)
-  api.use(requireCsrf)
   registerAuthRoutes(api)
 
-  // Admin (root only + CSRF)
+  // Admin (root only)
   api.use('/admin', requireRoot)
   registerAdminRoutes(api)
 
