@@ -32,8 +32,8 @@ export const securityMiddleware = [
             callback(new Error('Not allowed by CORS'));
         },
         credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-        allowedHeaders: ['Content-Type', 'X-CSRF-Token']
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'X-CSRF-Token', 'Authorization']
     }),
     rateLimit({
         windowMs: 60_000,
