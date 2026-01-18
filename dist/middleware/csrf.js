@@ -1,12 +1,14 @@
 import crypto from 'node:crypto';
 const CSRF_COOKIE = 'csrf';
+const IS_PROD = process.env.NODE_ENV === 'production';
 function setCookie(res, name, value) {
     const parts = [
         `${name}=${encodeURIComponent(value)}`,
         'Path=/',
-        'SameSite=Strict'
-    ];
-    // En producción: agregar Secure + HttpOnly según el caso.
+        // Cross-origin cookies require SameSite=None + Secure
+        IS_PROD ? 'SameSite=None' : 'SameSite=Lax',
+        IS_PROD ? 'Secure' : ''
+    ].filter(Boolean);
     res.append('Set-Cookie', parts.join('; '));
 }
 function parseCookies(header) {
