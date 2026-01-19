@@ -124,23 +124,23 @@ export function registerAuthRoutes(router: Router) {
       return res.status(401).json({ message: 'Credenciales inválidas' })
     }
 
-    const expectedPhone = normalizePhone(String(user.phone ?? ''))
-    const providedPhone = normalizePhone(phone ?? '')
-
-    // Admins: enforce phone when configured (recommended)
-    // Root: allow login without phone if none configured.
-    const mustMatchPhone = user.role !== 'root'
-    if ((mustMatchPhone && (!expectedPhone || expectedPhone !== providedPhone)) ||
-        (!mustMatchPhone && expectedPhone && expectedPhone !== providedPhone)) {
-      try {
-        await pool.query(
-          'insert into auth_audit(email, ip, user_agent, success) values ($1,$2,$3,$4)',
-          [email, req.ip ?? '', String(req.headers['user-agent'] ?? ''), false]
-        )
-      } catch {
-        // ignore
+    // Root users don't need phone verification
+    // Admins: enforce phone when configured
+    if (user.role !== 'root') {
+      const expectedPhone = normalizePhone(String(user.phone ?? ''))
+      const providedPhone = normalizePhone(phone ?? '')
+      
+      if (!expectedPhone || expectedPhone !== providedPhone) {
+        try {
+          await pool.query(
+            'insert into auth_audit(email, ip, user_agent, success) values ($1,$2,$3,$4)',
+            [email, req.ip ?? '', String(req.headers['user-agent'] ?? ''), false]
+          )
+        } catch {
+          // ignore
+        }
+        return res.status(401).json({ message: 'Credenciales inválidas' })
       }
-      return res.status(401).json({ message: 'Credenciales inválidas' })
     }
 
     const token = jwt.sign(
