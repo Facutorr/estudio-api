@@ -132,3 +132,79 @@ create table if not exists reviews (
 
 create index if not exists reviews_status_created_at_idx on reviews (status, created_at desc);
 create index if not exists reviews_approved_at_idx on reviews (approved_at desc);
+
+-- E-commerce: Products catalog
+create table if not exists products (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  description text not null default '',
+  category text not null check (category in ('calzado','pantalones','remeras','vestidos','buzos','ropa_interior')),
+  price decimal(10,2) not null check (price >= 0),
+  stock int not null default 0 check (stock >= 0),
+  images jsonb not null default '[]'::jsonb,
+  sizes jsonb not null default '[]'::jsonb,
+  colors jsonb not null default '[]'::jsonb,
+  featured boolean not null default false,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists products_category_idx on products (category);
+create index if not exists products_featured_idx on products (featured) where featured = true;
+create index if not exists products_active_idx on products (active) where active = true;
+
+-- E-commerce: Shopping cart
+create table if not exists cart_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  product_id uuid not null references products(id) on delete cascade,
+  quantity int not null default 1 check (quantity > 0),
+  size text not null default '',
+  color text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create unique index if not exists cart_items_user_product_size_color_uq on cart_items (user_id, product_id, size, color);
+create index if not exists cart_items_user_id_idx on cart_items (user_id);
+
+-- E-commerce: Orders
+create table if not exists orders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  status text not null default 'pending' check (status in ('pending','confirmed','shipped','delivered','cancelled')),
+  total decimal(10,2) not null check (total >= 0),
+  shipping_name text not null,
+  shipping_email text not null,
+  shipping_phone text not null,
+  shipping_address text not null,
+  shipping_city text not null,
+  shipping_department text not null,
+  shipping_postal_code text not null default '',
+  notes text not null default '',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists orders_user_id_idx on orders (user_id);
+create index if not exists orders_status_idx on orders (status);
+create index if not exists orders_created_at_idx on orders (created_at desc);
+
+-- E-commerce: Order items
+-- Note: product_name and product_price are snapshot values at time of order.
+-- product_id uses ON DELETE RESTRICT to prevent accidental product deletion;
+-- admin routes handle this by soft-deleting products (setting active=false) when they have orders.
+create table if not exists order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  product_id uuid not null references products(id) on delete restrict,
+  product_name text not null,
+  product_price decimal(10,2) not null check (product_price >= 0),
+  quantity int not null check (quantity > 0),
+  size text not null default '',
+  color text not null default '',
+  created_at timestamptz not null default now()
+);
+
+create index if not exists order_items_order_id_idx on order_items (order_id);

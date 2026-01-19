@@ -10,7 +10,10 @@ import {
   homeHeroSlidesUpsertSchema,
   newsCarouselSlidesUpsertSchema,
   newsPostCreateSchema,
-  newsSourceCreateSchema
+  newsSourceCreateSchema,
+  productCreateSchema,
+  productUpdateSchema,
+  productsListQuerySchema
 } from '../validation.js'
 import { decryptJson } from '../crypto.js'
 import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads, uploadToCloudinary, isCloudinaryUrl, deleteFromCloudinary } from '../services/uploads.js'
@@ -399,4 +402,208 @@ export function registerAdminRoutes(router: Router) {
         throw err
       }
     })
+
+  // Products management
+  router.get('/admin/products', async (req, res) => {
+    const parsed = productsListQuerySchema.safeParse(req.query)
+    if (!parsed.success) return res.status(400).json({ message: 'Parámetros inválidos' })
+
+    const { category, featured, limit, offset } = parsed.data
+
+    try {
+      let query = `
+        select id,
+               name,
+               description,
+               category,
+               price,
+               stock,
+               coalesce(images, '[]'::jsonb) as images,
+               coalesce(sizes, '[]'::jsonb) as sizes,
+               coalesce(colors, '[]'::jsonb) as colors,
+               featured,
+               active,
+               created_at as "createdAt",
+               updated_at as "updatedAt"
+        from products
+        where 1=1
+      `
+      const params: (string | number | boolean)[] = []
+      let paramIndex = 1
+
+      if (category) {
+        query += ` and category = $${paramIndex}`
+        params.push(category)
+        paramIndex++
+      }
+
+      if (featured !== undefined) {
+        query += ` and featured = $${paramIndex}`
+        params.push(featured)
+        paramIndex++
+      }
+
+      query += ` order by created_at desc limit $${paramIndex} offset $${paramIndex + 1}`
+      params.push(limit, offset)
+
+      const r = await pool.query(query, params)
+
+      return res.json({ products: r.rows })
+    } catch (err) {
+      console.error('Error fetching products:', err)
+      return res.status(500).json({ message: 'Error al obtener productos' })
+    }
+  })
+
+  router.post('/admin/products', async (req, res) => {
+    const parsed = productCreateSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ message: 'Datos inválidos' })
+
+    const { name, description, category, price, stock, images, sizes, colors, featured, active } = parsed.data
+
+    try {
+      const r = await pool.query(
+        `insert into products(name, description, category, price, stock, images, sizes, colors, featured, active)
+         values ($1, $2, $3, $4, $5, $6::jsonb, $7::jsonb, $8::jsonb, $9, $10)
+         returning id`,
+        [name, description, category, price, stock, JSON.stringify(images), JSON.stringify(sizes), JSON.stringify(colors), featured, active]
+      )
+
+      return res.json({ ok: true, id: r.rows[0].id })
+    } catch (err) {
+      console.error('Error creating product:', err)
+      return res.status(500).json({ message: 'Error al crear producto' })
+    }
+  })
+
+  router.put('/admin/products/:id', async (req, res) => {
+    const id = req.params.id
+    const parsed = productUpdateSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ message: 'Datos inválidos' })
+
+    const updates = parsed.data
+    const fields: string[] = []
+    const values: any[] = []
+    let paramIndex = 1
+
+    if (updates.name !== undefined) {
+      fields.push(`name = $${paramIndex}`)
+      values.push(updates.name)
+      paramIndex++
+    }
+    if (updates.description !== undefined) {
+      fields.push(`description = $${paramIndex}`)
+      values.push(updates.description)
+      paramIndex++
+    }
+    if (updates.category !== undefined) {
+      fields.push(`category = $${paramIndex}`)
+      values.push(updates.category)
+      paramIndex++
+    }
+    if (updates.price !== undefined) {
+      fields.push(`price = $${paramIndex}`)
+      values.push(updates.price)
+      paramIndex++
+    }
+    if (updates.stock !== undefined) {
+      fields.push(`stock = $${paramIndex}`)
+      values.push(updates.stock)
+      paramIndex++
+    }
+    if (updates.images !== undefined) {
+      fields.push(`images = $${paramIndex}::jsonb`)
+      values.push(JSON.stringify(updates.images))
+      paramIndex++
+    }
+    if (updates.sizes !== undefined) {
+      fields.push(`sizes = $${paramIndex}::jsonb`)
+      values.push(JSON.stringify(updates.sizes))
+      paramIndex++
+    }
+    if (updates.colors !== undefined) {
+      fields.push(`colors = $${paramIndex}::jsonb`)
+      values.push(JSON.stringify(updates.colors))
+      paramIndex++
+    }
+    if (updates.featured !== undefined) {
+      fields.push(`featured = $${paramIndex}`)
+      values.push(updates.featured)
+      paramIndex++
+    }
+    if (updates.active !== undefined) {
+      fields.push(`active = $${paramIndex}`)
+      values.push(updates.active)
+      paramIndex++
+    }
+
+    if (fields.length === 0) {
+      return res.status(400).json({ message: 'No hay cambios para actualizar' })
+    }
+
+    fields.push(`updated_at = now()`)
+    values.push(id)
+
+    try {
+      const result = await pool.query(
+        `update products set ${fields.join(', ')} where id = $${paramIndex} returning id`,
+        values
+      )
+
+      if (result.rowCount === 0) {
+        return res.status(404).json({ message: 'Producto no encontrado' })
+      }
+
+      return res.json({ ok: true })
+    } catch (err) {
+      console.error('Error updating product:', err)
+      return res.status(500).json({ message: 'Error al actualizar producto' })
+    }
+  })
+
+  router.delete('/admin/products/:id', async (req, res) => {
+    const id = req.params.id
+
+    try {
+      // Check if product has orders
+      const ordersCheck = await pool.query(
+        'select id from order_items where product_id = $1 limit 1',
+        [id]
+      )
+
+      if (ordersCheck.rows.length > 0) {
+        // Soft delete - just mark as inactive
+        await pool.query(
+          'update products set active = false, updated_at = now() where id = $1',
+          [id]
+        )
+        return res.json({ ok: true, softDeleted: true })
+      }
+
+      // Hard delete - no orders associated
+      const prev = await pool.query('select images from products where id = $1', [id])
+      await pool.query('delete from products where id = $1', [id])
+
+      // Clean up images
+      const images = prev.rows[0]?.images as string[] | undefined
+      if (images && Array.isArray(images)) {
+        for (const imageUrl of images) {
+          const filename = filenameFromUploadsUrl(imageUrl)
+          if (filename) {
+            try {
+              const p = safeJoinUploads(uploadsDir, filename)
+              await fs.unlink(p)
+            } catch {
+              // best-effort cleanup
+            }
+          }
+        }
+      }
+
+      return res.json({ ok: true })
+    } catch (err) {
+      console.error('Error deleting product:', err)
+      return res.status(500).json({ message: 'Error al eliminar producto' })
+    }
+  })
 }
