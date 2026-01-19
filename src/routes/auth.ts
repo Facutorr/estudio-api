@@ -34,9 +34,14 @@ async function ensureAdminUsers() {
 async function ensureRootUser() {
   const email = (config.rootEmail ?? '').trim()
   const password = config.rootPassword ?? ''
-  if (!email || !password) return
+  console.log('[ensureRootUser] email:', email, 'password length:', password.length)
+  if (!email || !password) {
+    console.log('[ensureRootUser] skipping - missing email or password')
+    return
+  }
 
   const hash = await bcrypt.hash(password, 12)
+  console.log('[ensureRootUser] hash generated, upserting user...')
   await pool.query(
     `insert into users(email, phone, password_hash, role)
      values ($1,$2,$3,$4)
@@ -45,6 +50,7 @@ async function ensureRootUser() {
          role = excluded.role`,
     [email, '', hash, 'root']
   )
+  console.log('[ensureRootUser] done')
 }
 
 function setCookie(res: any, name: string, value: string) {
