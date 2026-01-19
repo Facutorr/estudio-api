@@ -23,27 +23,35 @@ async function ensureAdminUsers() {
 async function ensureRootUser() {
     const email = (config.rootEmail ?? '').trim();
     const password = config.rootPassword ?? '';
-    if (!email || !password)
+    console.log('[ensureRootUser] email:', email, 'password length:', password.length);
+    if (!email || !password) {
+        console.log('[ensureRootUser] skipping - missing email or password');
         return;
+    }
     const hash = await bcrypt.hash(password, 12);
+    console.log('[ensureRootUser] hash generated, upserting user...');
     await pool.query(`insert into users(email, phone, password_hash, role)
      values ($1,$2,$3,$4)
      on conflict (email) do update
      set password_hash = excluded.password_hash,
          role = excluded.role`, [email, '', hash, 'root']);
+    console.log('[ensureRootUser] done');
 }
 function setCookie(res, name, value) {
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
     const parts = [
         `${name}=${encodeURIComponent(value)}`,
         'Path=/',
         'HttpOnly',
-        'SameSite=Strict'
-    ];
-    // En producción: agregar Secure.
+        isProduction ? 'SameSite=None' : 'SameSite=Strict',
+        isProduction ? 'Secure' : ''
+    ].filter(Boolean);
     res.append('Set-Cookie', parts.join('; '));
 }
 function clearCookie(res, name) {
-    res.append('Set-Cookie', `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`);
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT;
+    const sameSite = isProduction ? 'SameSite=None; Secure' : 'SameSite=Strict';
+    res.append('Set-Cookie', `${name}=; Path=/; Max-Age=0; HttpOnly; ${sameSite}`);
 }
 export function registerAuthRoutes(router) {
     // Auth/session info (para UI). No requiere CSRF porque es GET.
@@ -94,20 +102,20 @@ export function registerAuthRoutes(router) {
             }
             return res.status(401).json({ message: 'Credenciales inválidas' });
         }
-        const expectedPhone = normalizePhone(String(user.phone ?? ''));
-        const providedPhone = normalizePhone(phone ?? '');
-        // Admins: enforce phone when configured (recommended)
-        // Root: allow login without phone if none configured.
-        const mustMatchPhone = user.role !== 'root';
-        if ((mustMatchPhone && (!expectedPhone || expectedPhone !== providedPhone)) ||
-            (!mustMatchPhone && expectedPhone && expectedPhone !== providedPhone)) {
-            try {
-                await pool.query('insert into auth_audit(email, ip, user_agent, success) values ($1,$2,$3,$4)', [email, req.ip ?? '', String(req.headers['user-agent'] ?? ''), false]);
+        // Root users don't need phone verification
+        // Admins: enforce phone when configured
+        if (user.role !== 'root') {
+            const expectedPhone = normalizePhone(String(user.phone ?? ''));
+            const providedPhone = normalizePhone(phone ?? '');
+            if (!expectedPhone || expectedPhone !== providedPhone) {
+                try {
+                    await pool.query('insert into auth_audit(email, ip, user_agent, success) values ($1,$2,$3,$4)', [email, req.ip ?? '', String(req.headers['user-agent'] ?? ''), false]);
+                }
+                catch {
+                    // ignore
+                }
+                return res.status(401).json({ message: 'Credenciales inválidas' });
             }
-            catch {
-                // ignore
-            }
-            return res.status(401).json({ message: 'Credenciales inválidas' });
         }
         const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, config.jwtSecret, { issuer: config.jwtIssuer, expiresIn: '8h' });
         setCookie(res, config.cookieName, token);

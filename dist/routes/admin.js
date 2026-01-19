@@ -4,7 +4,7 @@ import multer from 'multer';
 import { pool } from '../db/pool.js';
 import { adminAnalyticsOverviewQuerySchema, adminAnalyticsRecentQuerySchema, adminReviewsQuerySchema, homeHeroSlidesUpsertSchema, newsCarouselSlidesUpsertSchema, newsPostCreateSchema, newsSourceCreateSchema } from '../validation.js';
 import { decryptJson } from '../crypto.js';
-import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads } from '../services/uploads.js';
+import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads, uploadToCloudinary } from '../services/uploads.js';
 export function registerAdminRoutes(router) {
     const uploadsDir = path.join(process.cwd(), 'uploads');
     const upload = multer({
@@ -165,6 +165,18 @@ export function registerAdminRoutes(router) {
         catch {
             return res.status(400).json({ message: 'Tipo de imagen no permitido' });
         }
+        // Use Cloudinary in production, local filesystem in development
+        if (process.env.CLOUDINARY_CLOUD_NAME) {
+            try {
+                const url = await uploadToCloudinary(f.buffer);
+                return res.json({ ok: true, url });
+            }
+            catch (e) {
+                console.error('Cloudinary upload error:', e);
+                return res.status(500).json({ message: 'Error al subir imagen' });
+            }
+        }
+        // Fallback to local storage (development only)
         const filename = makeSafeFilename(ext);
         await fs.mkdir(uploadsDir, { recursive: true });
         const outPath = safeJoinUploads(uploadsDir, filename);

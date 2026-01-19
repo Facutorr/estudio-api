@@ -1,6 +1,7 @@
 import { createServer } from './server.js';
 import { config } from './config.js';
 import { ensureSchema } from './db/migrate.js';
+// Force redeploy v2
 async function main() {
     try {
         await ensureSchema();

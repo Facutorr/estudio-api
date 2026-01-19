@@ -42,6 +42,8 @@ export const config = {
     contactEmail: process.env.CONTACT_EMAIL ?? 'estudiofernandotorres@gmail.com',
     // Resend API for sending emails
     resendApiKey: process.env.RESEND_API_KEY ?? '',
+    // Cloudinary for image uploads (required in production)
+    cloudinaryUrl: process.env.CLOUDINARY_URL ?? '',
     smtp: {
         host: process.env.SMTP_HOST ?? '',
         port: Number(process.env.SMTP_PORT ?? 587),

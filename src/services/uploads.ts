@@ -1,16 +1,28 @@
 import crypto from 'node:crypto'
 import path from 'node:path'
-import { v2 as cloudinary } from 'cloudinary'
 
-let cloudinaryConfigured = false
+// Lazy load cloudinary to avoid validation errors on startup
+let cloudinaryInstance: any = null
 
-function ensureCloudinaryConfig() {
-  if (cloudinaryConfigured) return
-  const url = process.env.CLOUDINARY_URL
-  if (url) {
-    cloudinary.config({ url })
-    cloudinaryConfigured = true
+async function getCloudinary() {
+  if (cloudinaryInstance) return cloudinaryInstance
+  
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME
+  const apiKey = process.env.CLOUDINARY_API_KEY
+  const apiSecret = process.env.CLOUDINARY_API_SECRET
+  
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('Cloudinary not configured')
   }
+  
+  const { v2 } = await import('cloudinary')
+  v2.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret
+  })
+  cloudinaryInstance = v2
+  return v2
 }
 
 const allowedMime = new Map<string, string>([
@@ -54,11 +66,11 @@ export function filenameFromUploadsUrl(url: string) {
 
 // Upload image to Cloudinary
 export async function uploadToCloudinary(buffer: Buffer, folder = 'estudio-juridico'): Promise<string> {
-  ensureCloudinaryConfig()
+  const cloudinary = await getCloudinary()
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       { folder, resource_type: 'image' },
-      (error, result) => {
+      (error: any, result: any) => {
         if (error) reject(error)
         else if (result) resolve(result.secure_url)
         else reject(new Error('No result from Cloudinary'))
@@ -69,7 +81,7 @@ export async function uploadToCloudinary(buffer: Buffer, folder = 'estudio-jurid
 
 // Delete image from Cloudinary by public_id
 export async function deleteFromCloudinary(url: string): Promise<void> {
-  ensureCloudinaryConfig()
+  const cloudinary = await getCloudinary()
   // Extract public_id from URL
   // URL format: https://res.cloudinary.com/xxx/image/upload/v123/folder/filename.ext
   const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/)

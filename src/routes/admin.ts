@@ -210,7 +210,7 @@ export function registerAdminRoutes(router: Router) {
     }
 
     // Use Cloudinary in production, local filesystem in development
-    if (process.env.CLOUDINARY_URL) {
+    if (process.env.CLOUDINARY_CLOUD_NAME) {
       try {
         const url = await uploadToCloudinary(f.buffer)
         return res.json({ ok: true, url })
