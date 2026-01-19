@@ -167,15 +167,18 @@ export function registerAdminRoutes(router) {
         }
         // Use Cloudinary in production, local filesystem in development
         if (process.env.CLOUDINARY_CLOUD_NAME) {
+            console.log('[upload] Using Cloudinary. Cloud name:', process.env.CLOUDINARY_CLOUD_NAME);
             try {
                 const url = await uploadToCloudinary(f.buffer);
+                console.log('[upload] Cloudinary success:', url);
                 return res.json({ ok: true, url });
             }
             catch (e) {
-                console.error('Cloudinary upload error:', e);
-                return res.status(500).json({ message: 'Error al subir imagen' });
+                console.error('[upload] Cloudinary error:', e?.message || e);
+                return res.status(500).json({ message: 'Error al subir imagen: ' + (e?.message || 'Unknown error') });
             }
         }
+        console.log('[upload] Using local storage (no CLOUDINARY_CLOUD_NAME)');
         // Fallback to local storage (development only)
         const filename = makeSafeFilename(ext);
         await fs.mkdir(uploadsDir, { recursive: true });
