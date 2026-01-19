@@ -12,6 +12,9 @@ import { registerAdminRoutes } from './routes/admin.js'
 import { registerAnalyticsRoutes } from './routes/analytics.js'
 import { registerReviewsRoutes } from './routes/reviews.js'
 import { registerIntakeRoutes } from './routes/intake.js'
+import { registerCatalogRoutes } from './routes/catalog.js'
+import { registerCartRoutes } from './routes/cart.js'
+import { registerOrdersRoutes } from './routes/orders.js'
 
 export function createServer() {
   const app = express()
@@ -52,6 +55,11 @@ export function createServer() {
   registerAnalyticsRoutes(api)
   registerReviewsRoutes(api)
   registerAuthRoutes(api)
+  registerCatalogRoutes(api)
+
+  // Authenticated routes
+  registerCartRoutes(api)
+  registerOrdersRoutes(api)
 
   // Admin (root only)
   api.use('/admin', requireRoot)

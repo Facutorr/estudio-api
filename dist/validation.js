@@ -110,4 +110,52 @@ export const newsCarouselSlidesUpsertSchema = z
         .max(12)
 })
     .strict();
+// E-commerce validations
+export const productCategory = z.enum(['calzado', 'pantalones', 'remeras', 'vestidos', 'buzos', 'ropa_interior']);
+export const productCreateSchema = z.object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().trim().max(5000).default(''),
+    category: productCategory,
+    price: z.coerce.number().min(0).max(999999.99),
+    stock: z.coerce.number().int().min(0).max(999999).default(0),
+    images: z.array(z.union([httpOrHttpsUrl, relativeUploadsUrl])).max(10).default([]),
+    sizes: z.array(z.string().trim().max(20)).max(20).default([]),
+    colors: z.array(z.string().trim().max(50)).max(20).default([]),
+    featured: z.boolean().default(false),
+    active: z.boolean().default(true)
+});
+export const productUpdateSchema = productCreateSchema.partial();
+export const productsListQuerySchema = z.object({
+    category: productCategory.optional(),
+    featured: z.coerce.boolean().optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
+});
+export const cartItemCreateSchema = z.object({
+    productId: z.string().uuid(),
+    quantity: z.coerce.number().int().min(1).max(100),
+    size: z.string().trim().max(20).default(''),
+    color: z.string().trim().max(50).default('')
+});
+export const cartItemUpdateSchema = z.object({
+    quantity: z.coerce.number().int().min(1).max(100)
+});
+export const orderCreateSchema = z.object({
+    shippingName: z.string().trim().min(2).max(200),
+    shippingEmail: z.string().email().max(254),
+    shippingPhone: z.string().trim().min(6).max(40),
+    shippingAddress: z.string().trim().min(5).max(300),
+    shippingCity: z.string().trim().min(2).max(100),
+    shippingDepartment: z.string().trim().min(2).max(100),
+    shippingPostalCode: z.string().trim().max(20).default(''),
+    notes: z.string().trim().max(1000).default('')
+});
+export const orderStatusUpdateSchema = z.object({
+    status: z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'])
+});
+export const ordersListQuerySchema = z.object({
+    status: z.enum(['pending', 'confirmed', 'shipped', 'delivered', 'cancelled']).optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+    offset: z.coerce.number().int().min(0).default(0)
+});
 //# sourceMappingURL=validation.js.map
