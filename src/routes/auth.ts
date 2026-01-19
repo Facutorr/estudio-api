@@ -54,18 +54,21 @@ async function ensureRootUser() {
 }
 
 function setCookie(res: any, name: string, value: string) {
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT
   const parts = [
     `${name}=${encodeURIComponent(value)}`,
     'Path=/',
     'HttpOnly',
-    'SameSite=Strict'
-  ]
-  // En producción: agregar Secure.
+    isProduction ? 'SameSite=None' : 'SameSite=Strict',
+    isProduction ? 'Secure' : ''
+  ].filter(Boolean)
   res.append('Set-Cookie', parts.join('; '))
 }
 
 function clearCookie(res: any, name: string) {
-  res.append('Set-Cookie', `${name}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`)
+  const isProduction = process.env.NODE_ENV === 'production' || process.env.RAILWAY_ENVIRONMENT
+  const sameSite = isProduction ? 'SameSite=None; Secure' : 'SameSite=Strict'
+  res.append('Set-Cookie', `${name}=; Path=/; Max-Age=0; HttpOnly; ${sameSite}`)
 }
 
 export function registerAuthRoutes(router: Router) {
