@@ -13,7 +13,8 @@ import {
   newsSourceCreateSchema
 } from '../validation.js'
 import { decryptJson } from '../crypto.js'
-import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads } from '../services/uploads.js'
+import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads, uploadToCloudinary, isCloudinaryUrl, deleteFromCloudinary } from '../services/uploads.js'
+import { config } from '../config.js'
 
 export function registerAdminRoutes(router: Router) {
   const uploadsDir = path.join(process.cwd(), 'uploads')
@@ -209,6 +210,18 @@ export function registerAdminRoutes(router: Router) {
       return res.status(400).json({ message: 'Tipo de imagen no permitido' })
     }
 
+    // Use Cloudinary in production, local filesystem in development
+    if (config.cloudinaryUrl) {
+      try {
+        const url = await uploadToCloudinary(f.buffer)
+        return res.json({ ok: true, url })
+      } catch (e) {
+        console.error('Cloudinary upload error:', e)
+        return res.status(500).json({ message: 'Error al subir imagen' })
+      }
+    }
+
+    // Fallback to local storage (development only)
     const filename = makeSafeFilename(ext)
     await fs.mkdir(uploadsDir, { recursive: true })
     const outPath = safeJoinUploads(uploadsDir, filename)
