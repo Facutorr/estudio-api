@@ -192,6 +192,9 @@ create index if not exists orders_status_idx on orders (status);
 create index if not exists orders_created_at_idx on orders (created_at desc);
 
 -- E-commerce: Order items
+-- Note: product_name and product_price are snapshot values at time of order.
+-- product_id uses ON DELETE RESTRICT to prevent accidental product deletion;
+-- admin routes handle this by soft-deleting products (setting active=false) when they have orders.
 create table if not exists order_items (
   id uuid primary key default gen_random_uuid(),
   order_id uuid not null references orders(id) on delete cascade,

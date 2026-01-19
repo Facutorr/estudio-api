@@ -83,7 +83,8 @@ export function registerCatalogRoutes(router) {
             }
             return res.json({ product: r.rows[0] });
         }
-        catch {
+        catch (err) {
+            console.error('Error fetching product:', err);
             return res.status(500).json({ message: 'Error al obtener producto' });
         }
     });

@@ -232,7 +232,7 @@ export function registerOrdersRoutes(router: Router) {
         from orders o
         join users u on u.id = o.user_id
       `
-      const params: any[] = []
+      const params: (string | number)[] = []
 
       if (status) {
         query += ' where o.status = $1'

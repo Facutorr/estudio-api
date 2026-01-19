@@ -40,7 +40,7 @@ export function registerCatalogRoutes(router: Router) {
         from products
         where active = true
       `
-      const params: any[] = []
+      const params: (string | number | boolean)[] = []
       let paramIndex = 1
 
       if (category) {
@@ -96,7 +96,8 @@ export function registerCatalogRoutes(router: Router) {
       }
 
       return res.json({ product: r.rows[0] })
-    } catch {
+    } catch (err) {
+      console.error('Error fetching product:', err)
       return res.status(500).json({ message: 'Error al obtener producto' })
     }
   })
