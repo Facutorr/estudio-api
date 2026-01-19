@@ -262,9 +262,12 @@ export function registerAdminRoutes(router) {
         return res.json({ items: r.rows });
     });
     router.put('/admin/home/hero', async (req, res) => {
+        console.log('[admin/home/hero] Received body:', JSON.stringify(req.body, null, 2));
         const parsed = homeHeroSlidesUpsertSchema.safeParse(req.body);
-        if (!parsed.success)
-            return res.status(400).json({ message: 'Datos inválidos' });
+        if (!parsed.success) {
+            console.log('[admin/home/hero] Validation error:', JSON.stringify(parsed.error.errors, null, 2));
+            return res.status(400).json({ message: 'Datos inválidos', errors: parsed.error.errors });
+        }
         const slides = parsed.data.slides;
         if (slides.length > 7)
             return res.status(400).json({ message: 'Máximo 7 fotos' });
