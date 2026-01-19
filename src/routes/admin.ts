@@ -14,7 +14,6 @@ import {
 } from '../validation.js'
 import { decryptJson } from '../crypto.js'
 import { assertAllowedImage, filenameFromUploadsUrl, makeSafeFilename, safeJoinUploads, uploadToCloudinary, isCloudinaryUrl, deleteFromCloudinary } from '../services/uploads.js'
-import { config } from '../config.js'
 
 export function registerAdminRoutes(router: Router) {
   const uploadsDir = path.join(process.cwd(), 'uploads')
@@ -211,7 +210,7 @@ export function registerAdminRoutes(router: Router) {
     }
 
     // Use Cloudinary in production, local filesystem in development
-    if (config.cloudinaryUrl) {
+    if (process.env.CLOUDINARY_URL) {
       try {
         const url = await uploadToCloudinary(f.buffer)
         return res.json({ ok: true, url })

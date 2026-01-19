@@ -1,11 +1,16 @@
 import crypto from 'node:crypto'
 import path from 'node:path'
 import { v2 as cloudinary } from 'cloudinary'
-import { config } from '../config.js'
 
-// Configure Cloudinary
-if (config.cloudinaryUrl) {
-  cloudinary.config({ url: config.cloudinaryUrl })
+let cloudinaryConfigured = false
+
+function ensureCloudinaryConfig() {
+  if (cloudinaryConfigured) return
+  const url = process.env.CLOUDINARY_URL
+  if (url) {
+    cloudinary.config({ url })
+    cloudinaryConfigured = true
+  }
 }
 
 const allowedMime = new Map<string, string>([
@@ -49,6 +54,7 @@ export function filenameFromUploadsUrl(url: string) {
 
 // Upload image to Cloudinary
 export async function uploadToCloudinary(buffer: Buffer, folder = 'estudio-juridico'): Promise<string> {
+  ensureCloudinaryConfig()
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload_stream(
       { folder, resource_type: 'image' },
@@ -63,6 +69,7 @@ export async function uploadToCloudinary(buffer: Buffer, folder = 'estudio-jurid
 
 // Delete image from Cloudinary by public_id
 export async function deleteFromCloudinary(url: string): Promise<void> {
+  ensureCloudinaryConfig()
   // Extract public_id from URL
   // URL format: https://res.cloudinary.com/xxx/image/upload/v123/folder/filename.ext
   const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.\w+$/)
