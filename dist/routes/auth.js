@@ -44,7 +44,8 @@ function setCookie(res, name, value) {
         'Path=/',
         'HttpOnly',
         isProduction ? 'SameSite=None' : 'SameSite=Strict',
-        isProduction ? 'Secure' : ''
+        isProduction ? 'Secure' : '',
+        isProduction ? 'Partitioned' : ''
     ].filter(Boolean);
     res.append('Set-Cookie', parts.join('; '));
 }
